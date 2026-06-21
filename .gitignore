@@ -1,0 +1,19 @@
+# Keep the repo limited to the 5 deployed PWA files.
+# Ignore everything by default, then allow-list the deployed files.
+/*
+
+!/.gitignore
+!/index.html
+!/world-cup-2026.html
+!/manifest.webmanifest
+!/sw.js
+!/icon-512.png
+
+# Explicitly never publish local-only files (docs, scripts, backups, secrets).
+world-cup-2026.html.bak
+update-wc.py
+Update World Cup.command
+CLAUDE.md
+HANDOFF.md
+.claude/
+.DS_Store
