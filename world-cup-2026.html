@@ -235,8 +235,13 @@
   <style>
   .dcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px}
   .dcard h3{margin:0 0 6px;font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-  .mrow{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
-  .mrow:last-child{border-bottom:0}
+  .mblk{padding:8px 0;border-bottom:1px solid var(--line)}
+  .mblk:last-child{border-bottom:0}
+  .mrow{display:flex;align-items:center;gap:7px;font-size:14px}
+  .scl{display:flex;gap:10px;font-size:11.5px;color:var(--muted);margin-top:4px}
+  .scl .sc{min-width:0}
+  .scl .sc.h{flex:1;text-align:right}
+  .scl .sc.a{flex:1;text-align:left}
   .mrow .tn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .mrow .tn.hm{flex:1;text-align:right}
   .mrow .tn.aw{flex:1;text-align:left}
@@ -695,7 +700,8 @@ async function fetchLive(){
       h:aliasF(_nm(h.TeamName))||m.PlaceHolderA||"?",
       a:aliasF(_nm(a.TeamName))||m.PlaceHolderB||"?",
       hs:h.Score,as:a.Score,st:m.MatchStatus,
-      g:(_nm(m.GroupName)||"").replace("Group ","Grp ")};
+      g:(_nm(m.GroupName)||"").replace("Group ","Grp "),
+      idStage:m.IdStage,idMatch:m.IdMatch,hId:h.IdTeam,aId:a.IdTeam};
   });
   const live=ms.filter(m=>m.st===3);
   const fin=ms.filter(m=>has(m)&&m.st!==3).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
@@ -704,10 +710,39 @@ async function fetchLive(){
   DAY={live,today:ms.filter(m=>m.date&&m.date===tdate),recent:fin.filter(m=>m.date<tdate).slice(0,6),next:up.filter(m=>m.date>tdate).slice(0,8),tdate};
   return ms.length;
 }
+var SCORERS={};
+function scorerLine(m){
+  const gs=SCORERS[m.idMatch]; if(!gs||!gs.length) return "";
+  const f=s=>gs.filter(g=>g.side===s).map(g=>`${g.name} ${g.min}${g.extra}`).join(", ");
+  const hh=f('h'),aa=f('a'); if(!hh&&!aa) return "";
+  return `<div class="scl"><span class="sc h">${hh?'⚽ '+hh:''}</span><span class="sc a">${aa?aa+' ⚽':''}</span></div>`;
+}
 function mRow(m){
   const score=(m.hs!=null&&m.as!=null)?`<b>${m.hs}–${m.as}</b>`:`<span class="mut">${m.time||'TBD'}</span>`;
   const badge=m.st===3?`<span class="lv">● LIVE</span>`:((m.hs!=null)?`<span class="ft">FT</span>`:``);
-  return `<div class="mrow"><span class="fl">${fl(m.h)}</span><span class="tn hm">${m.h}</span>${score}<span class="tn aw">${m.a}</span><span class="fl">${fl(m.a)}</span><span class="mg">${m.g}</span>${badge}</div>`;
+  return `<div class="mblk"><div class="mrow"><span class="fl">${fl(m.h)}</span><span class="tn hm">${m.h}</span>${score}<span class="tn aw">${m.a}</span><span class="fl">${fl(m.a)}</span><span class="mg">${m.g}</span>${badge}</div>${scorerLine(m)}</div>`;
+}
+async function fetchScorers(m){
+  try{
+    const u=`https://api.fifa.com/api/v3/timelines/17/285023/${m.idStage}/${m.idMatch}?language=en`;
+    const r=await fetch(u,{cache:"no-store"}); const d=await r.json();
+    const ev=d.Event||d.Events||[]; const gs=[];
+    ev.forEach(e=>{ if(e.Type===0){
+      const desc=(e.EventDescription&&e.EventDescription[0]&&e.EventDescription[0].Description)||"";
+      const name=desc.split(" (")[0].replace(/\s+scores.*$/i,"").trim();
+      const extra=/penalt/i.test(desc)?" (P)":(/own goal/i.test(desc)?" (OG)":"");
+      gs.push({name:name||"Goal",min:e.MatchMinute||"",side:e.IdTeam===m.hId?'h':(e.IdTeam===m.aId?'a':''),extra});
+    }});
+    return gs;
+  }catch(e){ return null; }
+}
+async function loadScorers(){
+  const targets=[],seen=new Set();
+  [].concat(DAY.live||[],DAY.today||[],DAY.recent||[]).forEach(m=>{
+    if(m.hs==null||m.as==null||!m.idMatch||seen.has(m.idMatch))return; seen.add(m.idMatch);
+    if(m.st===3||!SCORERS[m.idMatch]) targets.push(m);   // refetch live; finished once
+  });
+  await Promise.all(targets.slice(0,16).map(async m=>{const gs=await fetchScorers(m); if(gs!=null)SCORERS[m.idMatch]=gs;}));
 }
 function renderToday(){
   const el=$("#todayEl"); if(!el)return; let h="";
@@ -721,7 +756,7 @@ function renderToday(){
   h+=`<div class="mut" style="font-size:12px;padding:4px 2px">Live from FIFA · updated ${t} · auto-refreshes every 45s</div>`;
   el.innerHTML=h;
 }
-async function tickLive(){ try{await fetchLive();}catch(e){} renderToday(); renderTicker(); }
+async function tickLive(){ try{await fetchLive();}catch(e){} renderToday(); renderTicker(); try{await loadScorers();}catch(e){} renderToday(); }
 
 /* ============ NAV + INIT ============ */
 document.querySelectorAll("nav button").forEach(b=>{b.onclick=()=>{
