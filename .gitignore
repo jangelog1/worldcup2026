@@ -8,6 +8,7 @@
 !/manifest.webmanifest
 !/sw.js
 !/icon-512.png
+!/trophy.png
 
 # Explicitly never publish local-only files (docs, scripts, backups, secrets).
 world-cup-2026.html.bak
