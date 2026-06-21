@@ -1,6 +1,6 @@
 /* Service worker — makes the app work offline like a native app.
    Network-first (so live standings stay fresh online), cache fallback (so it opens offline). */
-const CACHE = 'wc2026-v1';
+const CACHE = 'wc2026-v2';
 const ASSETS = ['world-cup-2026.html', 'icon-512.png', 'manifest.webmanifest'];
 
 self.addEventListener('install', e => {

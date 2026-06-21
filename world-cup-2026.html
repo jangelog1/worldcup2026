@@ -224,15 +224,40 @@
 
 <div class="wrap">
   <nav>
-    <button class="on" data-t="bracket">🗂️ Bracket</button>
+    <button class="on" data-t="today">⚡ Today</button>
+    <button data-t="bracket">🗂️ Bracket</button>
     <button data-t="schedule">📅 Schedule &amp; Venues</button>
     <button data-t="odds">💰 Odds</button>
     <button data-t="groups">📊 Groups</button>
     <button data-t="teams">🌍 Teams &amp; News</button>
   </nav>
 
+  <style>
+  .dcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:0 0 12px}
+  .dcard h3{margin:0 0 6px;font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .mrow{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .mrow:last-child{border-bottom:0}
+  .mrow .tn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .mrow .tn.hm{flex:1;text-align:right}
+  .mrow .tn.aw{flex:1;text-align:left}
+  .mrow .fl{font-size:17px}
+  .mrow b{padding:0 5px;font-weight:800}
+  .mrow .mg{font-size:11px;color:var(--muted);white-space:nowrap}
+  .mrow .lv{font-size:10px;font-weight:800;color:#04221a;background:var(--accent);padding:2px 7px;border-radius:6px;animation:lvp 1.6s infinite}
+  .mrow .ft{font-size:10px;font-weight:800;color:var(--muted);border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+  @keyframes lvp{0%,100%{opacity:1}50%{opacity:.4}}
+  .story{padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.5}
+  .story:last-child{border-bottom:0}
+  </style>
+
+  <!-- TODAY (live dashboard) -->
+  <section class="on" id="today">
+    <div class="note">⚡ <b>Live daily dashboard</b> — today's matches with live scores, latest results and what's next, pulled straight from FIFA's match feed and refreshed every minute. Plus the day's storylines.</div>
+    <div id="todayEl"><div class="mut">Loading live scores…</div></div>
+  </section>
+
   <!-- BRACKET -->
-  <section class="on" id="bracket">
+  <section id="bracket">
     <div class="note">⚠️ <b>The Round of 32 isn't set yet</b> — the group stage runs through <b>June 27</b>, so no knockout matchups are official. This shows the <b>real bracket: official slot positions, match numbers, dates &amp; venues</b> (e.g. "Winner Group A" vs "3rd Place C/E/F/H/I"). Flip on <b>🔮 Predict mode</b> to auto-fill a projection from current standings and play it out — clearly <i>your prediction</i>, not actual fixtures.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
       <button class="reset" id="projBtn" onclick="toggleProj()" style="margin:0">🔮 Predict mode: OFF</button>
@@ -635,6 +660,8 @@ async function refresh(){
 function renderTicker(){
   const items=[];
   items.push(`🏆 <b>2026 FIFA World Cup</b> <span class="mut">USA · Canada · Mexico</span>`);
+  (DAY.live||[]).forEach(m=>items.push(`🔴 <b>LIVE</b> <span class="fl">${fl(m.h)}</span>${m.h} <b>${m.hs!=null?m.hs:0}–${m.as!=null?m.as:0}</b> ${m.a}<span class="fl">${fl(m.a)}</span>`));
+  (DAY.recent||[]).slice(0,5).forEach(m=>items.push(`<span class="fl">${fl(m.h)}</span>${m.h} <b>${m.hs}–${m.as}</b> ${m.a}<span class="fl">${fl(m.a)}</span> <span class="mut">FT</span>`));
   CONFIRMED.slice(0,12).forEach(f=>items.push(
     `<span class="fl">${fl(f.h)}</span>${f.h} <span class="mut">vs</span> <span class="fl">${fl(f.a)}</span>${f.a} <span class="mut">· ${f.d}${f.t?' '+f.t:''} · ${f.c}</span>`));
   const top=Object.keys(TEAMS).sort((a,b)=>TEAMS[a].odds-TEAMS[b].odds).slice(0,5);
@@ -646,6 +673,56 @@ function renderTicker(){
   requestAnimationFrame(()=>{const w=track.scrollWidth/2;track.style.animationDuration=Math.max(25,Math.round(w/70))+'s';});
 }
 
+/* ============ LIVE TODAY DASHBOARD (real-time from FIFA, in-browser) ============ */
+var DAY={live:[],today:[],recent:[],next:[],tdate:""};
+const TODAY_NEWS=[
+ "🇪🇸 <b>Spain</b> respond to a shock opening 0–0 with Cabo Verde, facing Saudi Arabia in Atlanta (Group H).",
+ "🇧🇪 <b>Belgium</b> look to kick-start their campaign against Iran in Group G.",
+ "🇺🇾 Group H leaders <b>Uruguay</b> wary of a banana skin against debutants Cabo Verde.",
+ "🇳🇿 <b>New Zealand</b> can go top of Group G with a win over Egypt.",
+ "🌪️ Yesterday's standouts: <b>Netherlands 5–1 Sweden</b>, <b>Japan 4–0 Tunisia</b>, <b>Germany 2–1 Côte d'Ivoire</b>."
+];
+const FAPI="https://api.fifa.com/api/v3/calendar/matches?idCompetition=17&idSeason=285023&count=200&language=en";
+const ALIASF={"IR Iran":"Iran","Cabo Verde":"Cape Verde","Congo DR":"DR Congo","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast"};
+function _nm(x){return (x&&x[0]&&x[0].Description)||"";}
+function aliasF(n){return ALIASF[n]||(typeof alias==="function"?alias(n):n)||n;}
+async function fetchLive(){
+  const r=await fetch(FAPI,{cache:"no-store"}); const d=await r.json();
+  const has=m=>m.hs!=null&&m.as!=null;
+  const ms=((d&&d.Results)||[]).map(m=>{
+    const ld=m.LocalDate||m.Date||""; const h=m.Home||{},a=m.Away||{};
+    return {date:ld.slice(0,10),time:ld.slice(11,16),
+      h:aliasF(_nm(h.TeamName))||m.PlaceHolderA||"?",
+      a:aliasF(_nm(a.TeamName))||m.PlaceHolderB||"?",
+      hs:h.Score,as:a.Score,st:m.MatchStatus,
+      g:(_nm(m.GroupName)||"").replace("Group ","Grp ")};
+  });
+  const live=ms.filter(m=>m.st===3);
+  const fin=ms.filter(m=>has(m)&&m.st!==3).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
+  const up=ms.filter(m=>!has(m)&&m.st!==3).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);
+  const tdate=(live[0]&&live[0].date)||(fin[0]&&fin[0].date)||(up[0]&&up[0].date)||"";
+  DAY={live,today:ms.filter(m=>m.date&&m.date===tdate),recent:fin.filter(m=>m.date<tdate).slice(0,6),next:up.filter(m=>m.date>tdate).slice(0,8),tdate};
+  return ms.length;
+}
+function mRow(m){
+  const score=(m.hs!=null&&m.as!=null)?`<b>${m.hs}–${m.as}</b>`:`<span class="mut">${m.time||'TBD'}</span>`;
+  const badge=m.st===3?`<span class="lv">● LIVE</span>`:((m.hs!=null)?`<span class="ft">FT</span>`:``);
+  return `<div class="mrow"><span class="fl">${fl(m.h)}</span><span class="tn hm">${m.h}</span>${score}<span class="tn aw">${m.a}</span><span class="fl">${fl(m.a)}</span><span class="mg">${m.g}</span>${badge}</div>`;
+}
+function renderToday(){
+  const el=$("#todayEl"); if(!el)return; let h="";
+  const lab=DAY.tdate?new Date(DAY.tdate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"}):"Today";
+  if(DAY.live.length) h+=`<div class="dcard"><h3>● Live now</h3>${DAY.live.map(mRow).join("")}</div>`;
+  if(DAY.today.length) h+=`<div class="dcard"><h3>📅 ${lab}</h3>${DAY.today.map(mRow).join("")}</div>`;
+  h+=`<div class="dcard"><h3>📰 Today's storylines</h3>${TODAY_NEWS.map(n=>`<div class="story">${n}</div>`).join("")}</div>`;
+  if(DAY.recent.length) h+=`<div class="dcard"><h3>✅ Earlier results</h3>${DAY.recent.map(mRow).join("")}</div>`;
+  if(DAY.next.length) h+=`<div class="dcard"><h3>⏭️ Coming up</h3>${DAY.next.map(mRow).join("")}</div>`;
+  const t=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+  h+=`<div class="mut" style="font-size:12px;padding:4px 2px">Live from FIFA · updated ${t} · auto-refreshes every 45s</div>`;
+  el.innerHTML=h;
+}
+async function tickLive(){ try{await fetchLive();}catch(e){} renderToday(); renderTicker(); }
+
 /* ============ NAV + INIT ============ */
 document.querySelectorAll("nav button").forEach(b=>{b.onclick=()=>{
   document.querySelectorAll("nav button").forEach(x=>x.classList.remove("on"));
@@ -654,8 +731,10 @@ document.querySelectorAll("nav button").forEach(b=>{b.onclick=()=>{
 $("#refreshBtn").onclick=refresh;
 
 renderBracket();renderSchedule();renderOdds();renderGroups();renderTeams();updateProjBtn();renderTicker();
-refresh();                       // try live on load
-setInterval(refresh,60000);      // auto-refresh every 60s
+refresh();                       // try live standings on load
+tickLive();                      // live scores + Today dashboard on load
+setInterval(refresh,60000);      // standings auto-refresh
+setInterval(tickLive,45000);     // live scores refresh every 45s
 
 // PWA: register service worker for offline use (only works when hosted over http/https, not file://)
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){
