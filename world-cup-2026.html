@@ -178,7 +178,7 @@
     <h1 style="justify-content:center">World Cup 2026 <span class="badge">Live</span></h1>
     <div class="sub">Hosted by <span class="host">🇺🇸 USA · 🇨🇦 Canada · 🇲🇽 Mexico</span> &nbsp;•&nbsp; Final: July 19, MetLife Stadium (NY/NJ)</div>
     <div class="statusbar" style="justify-content:center">
-      <span class="chip snap" id="chip"><span class="dot"></span><span id="chipTxt">Verified snapshot · Jun 25</span></span>
+      <span class="chip snap" id="chip"><span class="dot"></span><span id="chipTxt">Verified snapshot · Jun 26</span></span>
       <button class="rbtn" id="refreshBtn">↻ Refresh standings</button>
       <span style="color:var(--muted);font-size:12px" id="updTxt"></span>
     </div>
@@ -1967,12 +1967,12 @@ let GROUPS={
   A:[["Mexico",9,3,3,0,0,6],["South Africa",4,3,1,1,1,-1],["South Korea",3,3,1,0,2,-1],["Czechia",1,3,0,1,2,-4]],
   B:[["Switzerland",7,3,2,1,0,4],["Canada",4,3,1,1,1,5],["Bosnia and Herzegovina",4,3,1,1,1,-1],["Qatar",1,3,0,1,2,-8]],
   C:[["Brazil",7,3,2,1,0,6],["Morocco",7,3,2,1,0,3],["Scotland",3,3,1,0,2,-3],["Haiti",0,3,0,0,3,-6]],
-  D:[["USA",6,2,2,0,0,5],["Australia",3,2,1,0,1,0],["Paraguay",3,2,1,0,1,-2],["Türkiye",0,2,0,0,2,-3]],
+  D:[["USA",6,3,2,0,1,4],["Australia",4,3,1,1,1,0],["Paraguay",4,3,1,1,1,-2],["Türkiye",3,3,1,0,2,-2]],
   E:[["Germany",6,3,2,0,1,6],["Ivory Coast",6,3,2,0,1,2],["Ecuador",4,3,1,1,1,0],["Curaçao",1,3,0,1,2,-8]],
   F:[["Netherlands",7,3,2,1,0,6],["Japan",5,3,1,2,0,4],["Sweden",4,3,1,1,1,0],["Tunisia",0,3,0,0,3,-10]],
   G:[["Egypt",4,2,1,1,0,2],["Iran",2,2,0,2,0,0],["Belgium",2,2,0,2,0,0],["New Zealand",1,2,0,1,1,-2]],
   H:[["Spain",4,2,1,1,0,4],["Uruguay",2,2,0,2,0,0],["Cape Verde",2,2,0,2,0,0],["Saudi Arabia",1,2,0,1,1,-4]],
-  I:[["France",6,2,2,0,0,5],["Norway",6,2,2,0,0,4],["Senegal",0,2,0,0,2,-3],["Iraq",0,2,0,0,2,-6]],
+  I:[["France",9,3,3,0,0,7],["Norway",6,3,2,0,1,2],["Senegal",3,3,1,0,2,1],["Iraq",0,3,0,0,3,-10]],
   J:[["Argentina",6,2,2,0,0,5],["Austria",3,2,1,0,1,0],["Algeria",3,2,1,0,1,-2],["Jordan",0,2,0,0,2,-3]],
   K:[["Colombia",6,2,2,0,0,3],["Portugal",4,2,1,1,0,5],["DR Congo",1,2,0,1,1,-1],["Uzbekistan",0,2,0,0,2,-7]],
   L:[["England",4,2,1,1,0,2],["Ghana",4,2,1,1,0,1],["Croatia",3,2,1,0,1,-1],["Panama",0,2,0,0,2,-2]],
@@ -1982,10 +1982,6 @@ let GROUPS={
    (api.fifa.com, idCompetition=17, idSeason=285023). Real teams, FIFA host cities,
    real stadium names, and LOCAL kickoff dates/times. */
 const CONFIRMED=[
-  {d:"Thu Jun 25",t:"7:00 PM",h:"Paraguay",a:"Australia",v:"Levi's Stadium",c:"San Francisco Bay Area",g:"D"},
-  {d:"Thu Jun 25",t:"7:00 PM",h:"Türkiye",a:"USA",v:"SoFi Stadium",c:"Los Angeles",g:"D"},
-  {d:"Fri Jun 26",t:"3:00 PM",h:"Senegal",a:"Iraq",v:"BMO Field",c:"Toronto",g:"I"},
-  {d:"Fri Jun 26",t:"3:00 PM",h:"Norway",a:"France",v:"Gillette Stadium",c:"Boston",g:"I"},
   {d:"Fri Jun 26",t:"6:00 PM",h:"Uruguay",a:"Spain",v:"Estadio Akron",c:"Guadalajara",g:"H"},
   {d:"Fri Jun 26",t:"7:00 PM",h:"Cape Verde",a:"Saudi Arabia",v:"NRG Stadium",c:"Houston",g:"H"},
   {d:"Fri Jun 26",t:"8:00 PM",h:"New Zealand",a:"Belgium",v:"BC Place",c:"Vancouver",g:"G"},
