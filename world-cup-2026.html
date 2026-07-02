@@ -230,7 +230,7 @@
 
   <!-- BRACKET -->
   <section id="bracket">
-    <div class="note">⚠️ <b>The Round of 32 isn't set yet</b> — the group stage runs through <b>June 27</b>, so no knockout matchups are official. This shows the <b>real bracket: official slot positions, match numbers, dates &amp; venues</b> (e.g. "Winner Group A" vs "3rd Place C/E/F/H/I"). Flip on <b>🔮 Predict mode</b> to auto-fill a projection from current standings and play it out — clearly <i>your prediction</i>, not actual fixtures.</div>
+    <div class="note">🏆 <b>Knockout bracket — live from FIFA.</b> Real teams, scores and penalty results fill in automatically as matches finish, and winners advance through the bracket. For matches not yet decided, click a team to predict the winner (or flip on <b>🔮 Predict mode</b> to play out every remaining round yourself — ↺ Clear picks removes only your predictions, never real results).</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
       <button class="reset" id="projBtn" onclick="toggleProj()" style="margin:0">🔮 Predict mode: OFF</button>
       <button class="reset" onclick="resetBracket()" style="margin:0">↺ Clear picks</button>
@@ -240,7 +240,7 @@
 
   <!-- SCHEDULE -->
   <section id="schedule">
-    <div class="note">📅 <b>Official fixtures, dates, venues &amp; FIFA host cities</b> — every remaining group game plus the full knockout calendar, verified against the <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026" target="_blank" rel="noopener">official FIFA schedule ↗</a>. Groups are staggered: F/J/K finish last. Click any group match to open a team.</div>
+    <div class="note">📅 <b>Official knockout calendar — dates, venues &amp; FIFA host cities</b>, with real teams filled in live from the <a href="https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026" target="_blank" rel="noopener">official FIFA schedule ↗</a>. The group stage ended June 27.</div>
     <div id="scheduleEl"></div>
   </section>
 
@@ -252,7 +252,7 @@
 
   <!-- GROUPS -->
   <section id="groups">
-    <div class="note">📊 Group tables, <b>as of Jun 20 (best-effort)</b>. <span style="color:var(--accent)">▎</span> = currently in a qualifying spot (top 2 + 8 best 3rd-placed advance). Groups F/J/K have played fewer games (they finish later). Refresh pulls best-effort live standings. Click a team for news.</div>
+    <div class="note">📊 <b>Final group tables</b> — the group stage ended June 27 (top 2 + 8 best 3rd-placed advanced to the Round of 32). Click a team for news.</div>
     <div class="groups" id="groupsEl"></div>
   </section>
 
@@ -1978,13 +1978,8 @@ let GROUPS={
   L:[["England",7,3,2,1,0,4],["Croatia",6,3,2,0,1,0],["Ghana",4,3,1,1,1,0],["Panama",0,3,0,0,3,-4]],
 };
 
-/* Remaining group-stage fixtures — pulled directly from FIFA's official match API
-   (api.fifa.com, idCompetition=17, idSeason=285023). Real teams, FIFA host cities,
-   real stadium names, and LOCAL kickoff dates/times. */
-const CONFIRMED=[
-
-];
-let LIVE_FIX=[]; // populated from API (best-effort scores only)
+/* Group stage ended June 27 — knockout teams/scores now come live from FIFA
+   (api.fifa.com, idCompetition=17, idSeason=285023) via applyKnockout(). */
 
 /* ============ REAL 32-team knockout bracket (official structure) ============
    R32 slots pre-seeded with PROJECTED qualifiers (edit by clicking). */
@@ -2030,14 +2025,13 @@ const fl=n=>TEAMS[n]?TEAMS[n].fl:"⚽";
 const toOne=o=>(o/100)+"/1";
 const implied=o=>100/(o+100)*100;
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
-function fmtET(ts){try{return new Date(ts).toLocaleString("en-US",{timeZone:"America/New_York",weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+" ET";}catch(e){return ts;}}
-function fmtT(ts){try{return new Date(ts).toLocaleString("en-US",{timeZone:"America/New_York",hour:"numeric",minute:"2-digit"});}catch(e){return"";}}
 
 /* ============ BRACKET ============ */
 let PROJ=false; // projection (prediction) mode — off by default; R32 not official until June 27
 function slotLabel(ref){return ref.seed!==undefined?ref.desc:(ref.win!==undefined?("Winner of #"+ref.win):("Loser of #"+ref.lose));}
 function teamOf(ref){
   if(!ref)return null;
+  if(ref.real)return ref.real;               // real team from FIFA — always shown
   if(ref.seed!==undefined)return PROJ?ref.seed:null;
   if(ref.win!==undefined)return WIN[ref.win]||null;
   if(ref.lose!==undefined){const m=KO[ref.lose];if(!WIN[ref.lose])return null;const a=teamOf(m.a),b=teamOf(m.b);return WIN[ref.lose]===a?b:a;}
@@ -2056,7 +2050,10 @@ function slotHTML(id,which){
   const label=ref.seed!==undefined?ref.desc:(ref.win!==undefined?("Winner #"+ref.win):("Loser #"+ref.lose));
   if(!team)return `<div class="slot tbd">${label}</div>`;
   const won=WIN[id]===team;
-  return `<div class="slot ${won?'win':''}" data-id="${id}" data-team="${esc(team)}" onclick="pickSlot(this)"><span class="fl">${fl(team)}</span><span class="tn">${team}</span></div>`;
+  const sc=which==='a'?m.hs:m.as, pen=which==='a'?m.hp:m.ap;
+  const scoreHtml=(m.hs!=null&&m.as!=null)?`<span style="margin-left:auto;font-weight:800">${sc}${pen!=null?` <small style="color:var(--muted)">(${pen})</small>`:''}</span>`:'';
+  const click=m.fin?'':` data-id="${id}" data-team="${esc(team)}" onclick="pickSlot(this)"`;
+  return `<div class="slot ${won?'win':''}"${click}><span class="fl">${fl(team)}</span><span class="tn">${team}</span>${scoreHtml}</div>`;
 }
 function cardHTML(id){const m=KO[id];return `<div class="match"><div class="mcap">#${id} · ${m.d} · ${m.v}, ${m.c}</div>${slotHTML(id,'a')}${slotHTML(id,'b')}</div>`;}
 function colHTML(title,ids){return `<div class="col"><h3>${title}</h3>${ids.map(cardHTML).join("")}</div>`;}
@@ -2075,33 +2072,22 @@ function renderBracket(){
     colHTML("Semifinals",[101,102])+
     finalCol+champCol;
 }
-function resetBracket(){WIN={};renderBracket();}
+function resetBracket(){WIN={};applyKnockout(LASTMS);renderBracket();renderSchedule();}
 function updateProjBtn(){const b=$("#projBtn");if(b){b.textContent="🔮 Predict mode: "+(PROJ?"ON":"OFF");b.style.color=PROJ?"var(--accent)":"var(--muted)";b.style.borderColor=PROJ?"var(--accent)":"var(--line)";}}
-function toggleProj(){PROJ=!PROJ;WIN={};renderBracket();renderSchedule();updateProjBtn();}
+function toggleProj(){PROJ=!PROJ;WIN={};applyKnockout(LASTMS);renderBracket();renderSchedule();updateProjBtn();}
 
 /* ============ SCHEDULE ============ */
 function renderSchedule(){
-  // Remaining group-stage fixtures — straight from FIFA's official match API
-  let html=`<div class="day">⚽ Remaining group-stage fixtures — official FIFA schedule</div>`;
-  let lastDay="";
-  CONFIRMED.forEach(f=>{
-    if(f.d!==lastDay){html+=`<div class="day" style="color:var(--muted);font-size:12px">${f.d}</div>`;lastDay=f.d;}
-    html+=`<div class="fix" onclick="${TEAMS[f.h]?`openModal('${esc(f.h)}')`:''}">
-      <div class="tm">${f.t||''}<div style="color:var(--muted);font-weight:400;font-size:10px;margin-top:2px">Grp ${f.g}</div></div>
-      <div class="mt"><span class="fl">${fl(f.h)}</span>${f.h}<span class="vs">vs</span><span class="fl">${fl(f.a)}</span>${f.a}</div>
-      <div class="loc">${f.v}<br>${f.c}</div></div>`;
-  });
-  html+=`<div class="note" style="margin:8px 0 4px">All ${CONFIRMED.length} remaining group games from FIFA's official schedule. Kickoff times are <b>local to each venue</b>. Groups are staggered — F–L finish on Jun 27.</div>`;
-  // knockout calendar — official slots & venues (teams not set until June 27)
-  html+=`<div class="day">🏆 Knockout calendar — official slots, dates &amp; venues ${PROJ?'<span style="color:var(--accent2);font-weight:400">(showing your Predict-mode picks)</span>':'<span style="color:var(--muted);font-weight:400">(teams confirmed after June 27)</span>'}</div>`;
+  let html=`<div class="day">🏆 Knockout calendar — official dates &amp; venues, teams live from FIFA ${PROJ?'<span style="color:var(--accent2);font-weight:400">(+ your Predict-mode picks)</span>':''}</div>`;
   const rounds=[["Round of 32",[73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88]],["Round of 16",[89,90,91,92,93,94,95,96]],["Quarterfinals",[97,98,99,100]],["Semifinals",[101,102]],["Third place",[103]],["Final",[104]]];
   const side=(m,w)=>{const t=teamOf(m[w]);return t?`<span class="fl">${fl(t)}</span>${t}`:slotLabel(m[w]);};
   rounds.forEach(([rn,ids])=>{
     html+=`<div class="day" style="color:var(--muted);font-size:12px">${rn}</div><div class="ko">`;
     ids.forEach(id=>{const m=KO[id];
+      const score=(m.hs!=null&&m.as!=null)?`<b>${m.hs}–${m.as}</b>${m.hp!=null?` <small>(${m.hp}–${m.ap}p)</small>`:''}`:'<span class="vs">vs</span>';
       html+=`<div class="fix">
         <div class="tm">${m.d}</div>
-        <div class="mt"><span class="rndtag">#${id}</span>${side(m,'a')}<span class="vs">vs</span>${side(m,'b')}</div>
+        <div class="mt"><span class="rndtag">#${id}</span>${side(m,'a')}${score}${side(m,'b')}</div>
         <div class="loc">${m.v}<br>${m.c}</div></div>`;});
     html+=`</div>`;
   });
@@ -2147,19 +2133,21 @@ function renderTeams(){
 
 /* ============ MODAL ============ */
 function nextFixtureFor(n){
-  const f=CONFIRMED.find(x=>x.h===n||x.a===n);
-  let out="";
-  if(f){const opp=f.h===n?f.a:f.h;out+=`<div class="h">Next match — group stage</div><b>${f.d}</b><br>${fl(n)} ${n} vs ${fl(opp)} ${opp}<br>📍 ${f.v}, ${f.c}`;}
-  // Real knockout route by finishing position (opponents set after June 27)
-  const g=TEAMS[n].g;let winM,ruM;
-  for(const id in KO){const m=KO[id];if(m.r!=="R32")continue;
-    [m.a,m.b].forEach(ref=>{if(ref.desc==="Win "+g)winM=id;if(ref.desc==="RU "+g)ruM=id;});}
-  const route=id=>`R32 <b>#${id}</b> · ${KO[id].d} · ${KO[id].v}, ${KO[id].c}`;
-  out+=`${f?'<div style="height:10px"></div>':''}<div class="h">Knockout route (opponent set after June 27)</div>`+
-    (winM?`🥇 Win Group ${g} → ${route(winM)}<br>`:"")+
-    (ruM?`🥈 Runner-up ${g} → ${route(ruM)}`:"")+
-    `<br><span style="color:var(--muted)">3rd-place finishers are slotted by FIFA once all groups finish.</span>`;
-  return out;
+  // Real knockout run for this team, from live FIFA data
+  const rows=[];
+  for(const id in KO){const m=KO[id];
+    if(m.a.real!==n&&m.b.real!==n)continue;
+    const isA=m.a.real===n, opp=isA?m.b.real:m.a.real;
+    if(m.hs!=null&&m.as!=null){
+      const my=isA?m.hs:m.as, their=isA?m.as:m.hs, myp=isA?m.hp:m.ap, theirp=isA?m.ap:m.hp;
+      const res=WIN[id]===n?"✅":(WIN[id]?"❌":"");
+      rows.push(`${res} ${m.r} <b>#${id}</b> · ${n} ${my}–${their}${myp!=null?` <small>(${myp}–${theirp}p)</small>`:''} ${opp?fl(opp)+' '+opp:''}`);
+    }else{
+      const oppTxt=opp?fl(opp)+' '+opp:slotLabel(isA?m.b:m.a);
+      rows.push(`⏭️ ${m.r} <b>#${id}</b> · ${m.d} vs ${oppTxt}<br>&nbsp;&nbsp;&nbsp;📍 ${m.v}, ${m.c}`);
+    }
+  }
+  return `<div class="h">Knockout run</div>`+(rows.length?rows.join("<br>"):`<span style="color:var(--muted)">Did not advance from the group stage.</span>`);
 }
 function openModal(n){
   const t=TEAMS[n];if(!t)return;
@@ -2198,15 +2186,8 @@ async function fetchStandings(){
   t.forEach(row=>{const nm=alias(row.strTeam);if(!nm)return;
     for(const g in GROUPS){const arr=GROUPS[g];const idx=arr.findIndex(x=>x[0]===nm);
       if(idx>=0){arr[idx]=[nm,+row.intPoints,+row.intPlayed,+row.intWin,+row.intDraw,+row.intLoss,+row.intGoalDifference];n++;}}});
-  for(const g in GROUPS)GROUPS[g].sort((a,b)=>b[1]-a[1]||b[6]-a[6]||b[0]>a[0]?1:-1);
+  for(const g in GROUPS)GROUPS[g].sort((a,b)=>(b[1]-a[1])||(b[6]-a[6])||a[0].localeCompare(b[0]));
   return n;
-}
-async function fetchFixtures(){
-  const r=await fetch(API(`eventsnextleague.php?id=${CONFIG.league}`));
-  const d=await r.json();
-  LIVE_FIX=((d&&d.events)||[]).map(e=>({h:alias(e.strHomeTeam)||e.strHomeTeam,a:alias(e.strAwayTeam)||e.strAwayTeam,
-    ts:(e.strTimestamp||"").replace(" ","T")+(/(Z|\+)/.test(e.strTimestamp||"")?"":"Z"),v:e.strVenue||"",c:e.strCity||""}));
-  return LIVE_FIX.length;
 }
 let refreshing=false;
 async function refresh(){
@@ -2216,8 +2197,8 @@ async function refresh(){
   try{ns=await fetchStandings().catch(()=>0);}catch(e){}
   renderGroups();renderTeams();
   const time=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
-  if(ns>0){setChip("live","Live standings · "+ns+" teams ("+time+")");$("#updTxt").textContent="";}
-  else{setChip("snap","Verified snapshot · Jun 20");$("#updTxt").textContent="Live scores unavailable (free feed is rate-limited) — showing verified snapshot";}
+  if(ns>0){setChip("live","Final group tables · verified live ("+time+")");$("#updTxt").textContent="";}
+  else{setChip("snap","Final group tables · Jun 27");$("#updTxt").textContent="";}
   refreshing=false;
 }
 
@@ -2227,8 +2208,8 @@ function renderTicker(){
   items.push(`🏆 <b>2026 FIFA World Cup</b> <span class="mut">USA · Canada · Mexico</span>`);
   (DAY.live||[]).forEach(m=>items.push(`🔴 <b>LIVE</b> <span class="fl">${fl(m.h)}</span>${m.h} <b>${m.hs!=null?m.hs:0}–${m.as!=null?m.as:0}</b> ${m.a}<span class="fl">${fl(m.a)}</span>`));
   (DAY.recent||[]).slice(0,5).forEach(m=>items.push(`<span class="fl">${fl(m.h)}</span>${m.h} <b>${m.hs}–${m.as}</b> ${m.a}<span class="fl">${fl(m.a)}</span> <span class="mut">FT</span>`));
-  CONFIRMED.slice(0,12).forEach(f=>items.push(
-    `<span class="fl">${fl(f.h)}</span>${f.h} <span class="mut">vs</span> <span class="fl">${fl(f.a)}</span>${f.a} <span class="mut">· ${f.d}${f.t?' '+f.t:''} · ${f.c}</span>`));
+  (DAY.next||[]).slice(0,8).forEach(f=>items.push(
+    `<span class="fl">${fl(f.h)}</span>${f.h} <span class="mut">vs</span> <span class="fl">${fl(f.a)}</span>${f.a} <span class="mut">· ${f.date}${f.time?' '+f.time:''}</span>`));
   const top=Object.keys(TEAMS).sort((a,b)=>TEAMS[a].odds-TEAMS[b].odds).slice(0,5);
   items.push(`📈 <b>Favourites:</b> `+top.map(n=>`<span class="fl">${fl(n)}</span>${n} <b>${toOne(TEAMS[n].odds)}</b>`).join(' <span class="mut">·</span> '));
   items.push(`🥇 <b>Final:</b> Jul 19 · MetLife Stadium, New York New Jersey`);
@@ -2240,13 +2221,16 @@ function renderTicker(){
 
 /* ============ LIVE TODAY DASHBOARD (real-time from FIFA, in-browser) ============ */
 var DAY={live:[],today:[],recent:[],next:[],tdate:""};
-const TODAY_NEWS=[
- "🇪🇸 <b>Spain</b> respond to a shock opening 0–0 with Cabo Verde, facing Saudi Arabia in Atlanta (Group H).",
- "🇧🇪 <b>Belgium</b> look to kick-start their campaign against Iran in Group G.",
- "🇺🇾 Group H leaders <b>Uruguay</b> wary of a banana skin against debutants Cabo Verde.",
- "🇳🇿 <b>New Zealand</b> can go top of Group G with a win over Egypt.",
- "🌪️ Yesterday's standouts: <b>Netherlands 5–1 Sweden</b>, <b>Japan 4–0 Tunisia</b>, <b>Germany 2–1 Côte d'Ivoire</b>."
-];
+var LASTMS=[];   // last full FIFA match list — feeds the knockout bracket
+function genStorylines(){
+  const s=[];
+  (DAY.live||[]).forEach(m=>s.push(`🔴 <b>${m.h} ${m.hs!=null?m.hs:0}–${m.as!=null?m.as:0} ${m.a}</b> — live now${m.g?` (${m.g})`:''}.`));
+  (DAY.recent||[]).slice(0,3).forEach(m=>{const p=(m.hp!=null&&m.ap!=null)?` <small>(${m.hp}–${m.ap}p)</small>`:"";
+    s.push(`✅ <b>${m.h} ${m.hs}–${m.as}${p} ${m.a}</b> — full time.`);});
+  (DAY.next||[]).slice(0,3).forEach(m=>s.push(`⏭️ <b>${m.h} vs ${m.a}</b> — ${m.date}${m.time?' '+m.time+' local':''}.`));
+  const ch=WIN[104];if(ch)s.push(`🏆 <b>${ch}</b> are world champions!`);
+  return s.length?s:["Knockout rounds under way — matches load live from FIFA."];
+}
 const FAPI="https://api.fifa.com/api/v3/calendar/matches?idCompetition=17&idSeason=285023&count=200&language=en";
 const ALIASF={"IR Iran":"Iran","Cabo Verde":"Cape Verde","Congo DR":"DR Congo","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast"};
 function _nm(x){return (x&&x[0]&&x[0].Description)||"";}
@@ -2261,14 +2245,49 @@ async function fetchLive(){
       a:aliasF(_nm(a.TeamName))||m.PlaceHolderB||"?",
       hs:h.Score,as:a.Score,st:m.MatchStatus,
       g:(_nm(m.GroupName)||"").replace("Group ","Grp "),
+      num:m.MatchNumber,winnerId:m.Winner,
+      hp:m.HomeTeamPenaltyScore,ap:m.AwayTeamPenaltyScore,
       idStage:m.IdStage,idMatch:m.IdMatch,hId:h.IdTeam,aId:a.IdTeam};
   });
+  LASTMS=ms; applyKnockout(ms);
   const live=ms.filter(m=>m.st===3);
   const fin=ms.filter(m=>has(m)&&m.st!==3).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
   const up=ms.filter(m=>!has(m)&&m.st!==3).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);
-  const tdate=(live[0]&&live[0].date)||(fin[0]&&fin[0].date)||(up[0]&&up[0].date)||"";
+  const realToday=new Date().toISOString().slice(0,10);
+  const tdate=(live[0]&&live[0].date)||(ms.some(m=>m.date===realToday)?realToday:((up[0]&&up[0].date)||(fin[0]&&fin[0].date)||""));
   DAY={live,today:ms.filter(m=>m.date&&m.date===tdate),recent:fin.filter(m=>m.date<tdate).slice(0,6),next:up.filter(m=>m.date>tdate).slice(0,8),tdate};
   return ms.length;
+}
+/* Feed real knockout results (teams, scores, pens, winners) into the bracket.
+   FIFA MatchNumber 73–104 matches KO ids exactly. Winner comes from FIFA's
+   Winner field (handles penalty shootouts); score comparison is the fallback. */
+function applyKnockout(ms){
+  (ms||[]).forEach(m=>{
+    if(!m.num||!KO[m.num])return;
+    const k=KO[m.num];
+    if(m.h&&m.h!=="?"&&!/^[0-9]?[A-L]$|^W[0-9]+$|^RU[0-9]+$|^3[A-L]+$/.test(m.h))k.a.real=m.h;
+    if(m.a&&m.a!=="?"&&!/^[0-9]?[A-L]$|^W[0-9]+$|^RU[0-9]+$|^3[A-L]+$/.test(m.a))k.b.real=m.a;
+    k.hs=m.hs;k.as=m.as;k.hp=m.hp;k.ap=m.ap;
+    k.fin=(m.st===0&&m.hs!=null&&m.as!=null);
+    if(k.fin&&k.a.real&&k.b.real){
+      let w=null;
+      if(m.winnerId!=null)w=String(m.winnerId)===String(m.hId)?k.a.real:(String(m.winnerId)===String(m.aId)?k.b.real:null);
+      if(!w)w=m.hs>m.as?k.a.real:(m.as>m.hs?k.b.real:null);
+      if(w)WIN[m.num]=w;
+    }
+  });
+  // Recompute team status pills from bracket reality
+  const inKO=new Set();
+  for(const id in KO){const k=KO[id];if(k.a.real)inKO.add(k.a.real);if(k.b.real)inKO.add(k.b.real);}
+  if(inKO.size){
+    for(const n in TEAMS){
+      if(!inKO.has(n)){TEAMS[n].st="out";continue;}
+      let lost=false;
+      for(const id in KO){const k=KO[id];if(!k.fin||k.r==="3RD")continue;
+        if((k.a.real===n||k.b.real===n)&&WIN[id]&&WIN[id]!==n)lost=true;}
+      TEAMS[n].st=lost?"out":"in";
+    }
+  }
 }
 var SCORERS={};
 function scorerLine(m){
@@ -2309,14 +2328,14 @@ function renderToday(){
   const lab=DAY.tdate?new Date(DAY.tdate+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"}):"Today";
   if(DAY.live.length) h+=`<div class="dcard"><h3>● Live now</h3>${DAY.live.map(mRow).join("")}</div>`;
   if(DAY.today.length) h+=`<div class="dcard"><h3>📅 ${lab}</h3>${DAY.today.map(mRow).join("")}</div>`;
-  h+=`<div class="dcard"><h3>📰 Today's storylines</h3>${TODAY_NEWS.map(n=>`<div class="story">${n}</div>`).join("")}</div>`;
+  h+=`<div class="dcard"><h3>📰 Today's storylines</h3>${genStorylines().map(n=>`<div class="story">${n}</div>`).join("")}</div>`;
   if(DAY.recent.length) h+=`<div class="dcard"><h3>✅ Earlier results</h3>${DAY.recent.map(mRow).join("")}</div>`;
   if(DAY.next.length) h+=`<div class="dcard"><h3>⏭️ Coming up</h3>${DAY.next.map(mRow).join("")}</div>`;
   const t=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
   h+=`<div class="mut" style="font-size:12px;padding:4px 2px">Live from FIFA · updated ${t} · auto-refreshes every 45s</div>`;
   el.innerHTML=h;
 }
-async function tickLive(){ try{await fetchLive();}catch(e){} renderToday(); renderTicker(); try{await loadScorers();}catch(e){} renderToday(); }
+async function tickLive(){ try{await fetchLive();}catch(e){} renderToday(); renderTicker(); renderBracket(); renderSchedule(); renderTeams(); try{await loadScorers();}catch(e){} renderToday(); }
 
 /* ============ NAV + INIT ============ */
 document.querySelectorAll("nav button").forEach(b=>{b.onclick=()=>{
